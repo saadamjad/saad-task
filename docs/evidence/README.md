@@ -1,9 +1,26 @@
-# Evidence Checklist
+# Evidence — Physical Device (assessment requirement)
 
-Place physical-device evidence files in this folder before submission:
+The brief asks for **screen recordings or screenshots of the app running on a physical device**, plus flows that demonstrate **Module 2** on **both iOS and Android**.
 
-- `ios-biometric-success.mp4` or screenshots
-- `ios-pin-fallback.mp4` or screenshots
-- `android-biometric-success.mp4` or screenshots
-- `android-pin-fallback.mp4` or screenshots
-- `app-running-physical-device.png`
+Add files here **before** submitting (filenames can vary; keep names descriptive):
+
+## Required coverage
+
+| Artifact | Platform | What to show |
+|----------|----------|----------------|
+| Feed scrolling + skeleton → loaded articles | iOS & Android | RSS feed works; infinite scroll |
+| Save Offline / Remove Offline toggle | iOS & Android | Card updates immediately |
+| Open article → WebView toolbar | iOS & Android | Back, Share, Browser |
+| Biometric success entering Saved tab | iOS & Android | Face ID / fingerprint |
+| PIN fallback | iOS & Android | Flow when biometrics unavailable or failed |
+
+## Suggested filenames
+
+- `ios-feed-and-save.mp4` or `.png` series
+- `android-feed-and-save.mp4` or `.png` series
+- `ios-saved-gate-biometric.mp4`
+- `ios-saved-gate-pin.mp4`
+- `android-saved-gate-biometric.mp4`
+- `android-saved-gate-pin.mp4`
+
+**Do not** commit signing keys, keystores, or API secrets into this folder.

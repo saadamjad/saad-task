@@ -1,6 +1,22 @@
 # Deployment Guide
 
-This document describes practical release steps for Android and iOS, including signing setup and store submission.
+This document supports **Module 3** of the assessment: configuring signing, CI/CD secrets, and submitting builds to **Google Play** and **Apple App Store / TestFlight**. It assumes you already have developer accounts for both platforms.
+
+---
+
+## CI/CD summary
+
+| Goal | Workflow | Notes |
+|------|----------|--------|
+| PR/main quality gate | `ci.yml` | Runs `yarn typecheck`, `yarn lint`, `yarn test --watch=false` |
+| Signed Android APK (QA) | `android-release-development.yml` | Uses GitHub Environment **`development`** |
+| Signed Android AAB + Play Beta | `android-release-production.yml` | Uses **`production`** + Play API JSON secret |
+| Signed iOS IPA (QA) | `ios-release-development.yml` | Uses **`development`** |
+| Signed iOS IPA + TestFlight | `ios-release-production.yml` | Uses **`production`** + App Store Connect API key secrets |
+
+Triggers include **`workflow_dispatch`** (manual) and branch pushes (`development` / `master`) per workflow file.
+
+---
 
 ## 1) Android Release (Signed APK / AAB)
 
@@ -16,9 +32,11 @@ keytool -genkeypair -v \
   -validity 10000
 ```
 
+Keep the keystore file **off** git (already ignored via `*.keystore` patterns except debug).
+
 ### Configure GitHub Secrets (per Environment)
 
-Store signing secrets on GitHub Environments **`development`** and **`production`** (or repo secrets if you prefer):
+Store signing secrets on GitHub Environments **`development`** and **`production`** (recommended), or repository secrets:
 
 | Secret | Used by |
 |--------|---------|
@@ -27,13 +45,13 @@ Store signing secrets on GitHub Environments **`development`** and **`production
 | `ANDROID_STORE_PASSWORD` | Dev + Prod |
 | `ANDROID_KEY_PASSWORD` | Dev + Prod |
 
-**Production only** — Google Play uploads:
+**Production only** — Google Play uploads via API:
 
-| Secret | Used by |
+| Secret | Purpose |
 |--------|---------|
-| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Full JSON for a Play Console–linked service account with permission to create releases (JSON pasted as one secret). |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Full JSON for a Play Console–linked service account with permission to create releases (paste as one secret). |
 
-Create the service account in Google Cloud, grant it access under Play Console → Setup → API access, then enable the Google Play Android Developer API.
+Create the service account in Google Cloud, grant access under **Play Console → Setup → API access**, and enable the **Google Play Android Developer API**.
 
 ### Build locally
 
@@ -46,28 +64,30 @@ export ORG_GRADLE_PROJECT_MYAPP_UPLOAD_KEY_PASSWORD=your_key_password
 ./gradlew assembleRelease
 ```
 
-Output:
+Outputs:
 
 - APK: `android/app/build/outputs/apk/release/app-release.apk`
-- AAB: `android/app/build/outputs/bundle/release/app-release.aab` (`./gradlew bundleRelease`)
+- AAB: `./gradlew bundleRelease` → `android/app/build/outputs/bundle/release/app-release.aab`
 
-CI sets `CI_VERSION_CODE` / `CI_VERSION_NAME` so each Play upload gets a new `versionCode`.
+CI passes Gradle properties `CI_VERSION_CODE` / `CI_VERSION_NAME` so Play receives monotonic **versionCode** values.
 
-### Submit to Google Play (manual alternative)
+### Google Play submission (manual path)
 
-1. Open Google Play Console → your app.
-2. Use Testing → Open/Closed testing (**Beta** track matches the production workflow default).
-3. Upload the signed AAB and roll out.
+1. **Play Console** → your app → **Testing** (internal / open / closed) or **Production**.
+2. Create a release, upload the **AAB** (preferred over APK for Play).
+3. Complete release notes, content rating, data safety, and roll out.
+
+---
 
 ## 2) iOS Release (Signed IPA)
 
 ### Apple prerequisites
 
-- Apple Developer membership
-- App Identifier (bundle ID)
-- Distribution certificate
-- App Store provisioning profile
-- App Store Connect app entry
+- Paid **Apple Developer Program** membership
+- **App ID** (bundle identifier) matching Xcode
+- **Distribution** signing certificate (`.p12`)
+- **App Store** provisioning profile for that App ID
+- **App Store Connect** app record for the bundle ID
 
 ### Configure GitHub Secrets (signing)
 
@@ -75,26 +95,26 @@ Per **`development`** / **`production`** environment:
 
 | Secret | Purpose |
 |--------|---------|
-| `IOS_DISTRIBUTION_CERT_BASE64` | `.p12` distribution cert, base64 |
+| `IOS_DISTRIBUTION_CERT_BASE64` | Distribution `.p12`, base64-encoded |
 | `IOS_P12_PASSWORD` | Certificate password |
 | `IOS_PROVISIONING_PROFILE_BASE64` | App Store provisioning profile |
-| `IOS_TEAM_ID` | Apple Team ID (also substituted into `ExportOptions.plist` in CI) |
+| `IOS_TEAM_ID` | Team ID (substituted into `ios/ExportOptions.plist` in CI) |
 
-### App Store Connect API (TestFlight upload — production workflow only)
+### App Store Connect API (TestFlight upload — production iOS workflow)
 
-Add these to the **`production`** environment (create an App Store Connect API key with App Manager or Admin):
+Create an API key in **App Store Connect → Users and Access → Integrations → App Store Connect API** (role **App Manager** or **Admin**). Add to **`production`**:
 
 | Secret | Purpose |
 |--------|---------|
-| `APP_STORE_CONNECT_ISSUER_ID` | Issuer UUID from App Store Connect → Users and Access → Integrations → Keys |
+| `APP_STORE_CONNECT_ISSUER_ID` | Issuer UUID |
 | `APP_STORE_CONNECT_API_KEY_ID` | Key ID |
-| `APP_STORE_CONNECT_API_PRIVATE_KEY` | Full `.p8` key contents |
+| `APP_STORE_CONNECT_API_PRIVATE_KEY` | Full `.p8` contents |
 
 ### Local archive and export
 
 ```bash
 cd ios
-pod install
+bundle exec pod install
 cd ..
 xcodebuild -workspace ios/SaadTask.xcworkspace \
   -scheme SaadTask \
@@ -108,42 +128,36 @@ xcodebuild -exportArchive \
   -exportPath ios/build
 ```
 
-Replace `REPLACE_WITH_TEAM_ID` in `ios/ExportOptions.plist` with your team ID (CI does this automatically).
+Replace `REPLACE_WITH_TEAM_ID` in `ios/ExportOptions.plist` with your Team ID (CI does this via `sed`).
 
-Output:
+Output: `ios/build/*.ipa`
 
-- `ios/build/*.ipa`
+### App Store / TestFlight submission
 
-### Submit to App Store Connect
+1. Upload the IPA via **Transporter**, **Xcode Organizer**, or the **`ios-release-production.yml`** workflow (TestFlight).
+2. **App Store Connect → TestFlight**: wait for processing; fix missing compliance if prompted.
+3. Add internal/external testers or submit the build to **App Review** with metadata, privacy policy URL, and export compliance.
 
-1. Upload IPA using Transporter or the production GitHub workflow (TestFlight).
-2. In App Store Connect → TestFlight, wait for processing.
-3. Add testers or promote to App Store review as needed.
+If `exportArchive` fails with **manual signing**, add the **`provisioningProfiles`** dictionary to `ExportOptions.plist` mapping your bundle ID to the profile name (Apple requirement for manual exports).
 
-If `exportArchive` fails with manual signing, ensure `ExportOptions.plist` includes a `provisioningProfiles` dictionary mapping your bundle ID to the profile name (Apple requirement for manual exports).
+---
 
-## 3) CI/CD Workflow Map
+## 3) Branch / environment model
 
-| Workflow | Trigger | Environment | Output |
-|----------|---------|-------------|--------|
-| `ci.yml` | PR + push to `main` / `master` | — | Lint, typecheck, test |
-| `android-release-development.yml` | Push to **`development`**, or manual | `development` | Signed APK artifact |
-| `android-release-production.yml` | Push to **`master`**, or manual | `production` | Signed AAB artifact + **Google Play `beta`** track |
-| `ios-release-development.yml` | Push to **`development`**, or manual | `development` | Signed IPA artifact (no TestFlight) |
-| `ios-release-production.yml` | Push to **`master`**, or manual | `production` | IPA artifact + **TestFlight** upload |
+| Branch | Typical use |
+|--------|----------------|
+| `development` | Internal QA builds (artifacts only or internal testers) |
+| `master` | Store-bound pipelines (Play Beta / TestFlight as configured) |
 
-**Branches:** `development` = internal QA builds; `master` = store-facing pipelines.
+**GitHub Environments:** **Settings → Environments** — create `development` and `production`, protect if needed, attach secrets per environment.
 
-**Google Play track:** The production Android workflow uses `track: beta`. To use internal testing only, change the `track` input in `android-release-production.yml` to `internal`.
+---
 
-**GitHub Environments:** Repository Settings → Environments → create `development` and `production`. Attach the secrets above per environment so dev/prod signing can differ.
+## 4) Production readiness checklist
 
-## 4) Production Readiness Checklist
-
-- [ ] Version/bundle number incremented (CI bumps Android `versionCode` automatically)
-- [ ] Changelog/release notes prepared
-- [ ] Tests and lint passing (`ci.yml`)
-- [ ] Signing secrets valid and rotated if needed
-- [ ] Play Console app created and service account linked (Android prod)
-- [ ] App Store Connect API key created (iOS prod / TestFlight)
-- [ ] Privacy policy URL and data safety forms updated where required
+- [ ] **CI green:** `ci.yml` passes on default branch
+- [ ] **Versioning:** Android `versionCode` bumps each Play upload (CI sets via Gradle props); iOS **CFBundleShortVersionString** / **CFBundleVersion** updated in Xcode when shipping
+- [ ] **Secrets:** Rotate signing credentials if exposed
+- [ ] **Play:** Service account linked; tracks (beta/internal/production) chosen deliberately
+- [ ] **App Store:** API key stored securely; agreements / banking / export compliance completed in ASC
+- [ ] **Privacy:** URLs and **App Privacy** / **Data safety** forms aligned with app behavior
