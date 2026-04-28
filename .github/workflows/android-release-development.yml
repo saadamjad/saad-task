@@ -1,0 +1,61 @@
+# Signed release APK for internal QA (artifact download). Uses GitHub Environment `development`.
+# Triggers: pushes to `development`, or manual run.
+
+name: Android Release — Development
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - development
+
+concurrency:
+  group: android-development-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android-development:
+    runs-on: ubuntu-latest
+    container:
+      image: reactnativecommunity/react-native-android
+    environment: development
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install Yarn
+        run: npm install -g yarn@1.22.22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Set CI version (unique versionCode per run)
+        run: |
+          echo "CI_VERSION_CODE=$(date +%s)" >> "$GITHUB_ENV"
+          echo "CI_VERSION_NAME=0.0.${GITHUB_RUN_NUMBER}-dev" >> "$GITHUB_ENV"
+
+      - name: Decode keystore
+        run: echo "${{ secrets.ANDROID_SIGNING_KEY_BASE64 }}" | base64 -d > android/app/release.keystore
+
+      - name: Build signed APK
+        working-directory: android
+        env:
+          ORG_GRADLE_PROJECT_MYAPP_UPLOAD_STORE_FILE: release.keystore
+          ORG_GRADLE_PROJECT_MYAPP_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_MYAPP_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_MYAPP_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease -PCI_VERSION_CODE="$CI_VERSION_CODE" -PCI_VERSION_NAME="$CI_VERSION_NAME"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: saad-task-android-development
+          path: android/app/build/outputs/apk/release/app-release.apk
