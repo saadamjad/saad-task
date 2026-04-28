@@ -62,9 +62,10 @@ const feedSlice = createSlice({
     });
     builder.addCase(fetchFeed.rejected, (state, action) => {
       state.loading = false;
-      state.error =
+      const raw =
         action.error.message ??
         'Unable to load feed. Check your connection and try again.';
+      state.error = raw.trim().length > 0 ? raw : 'Unable to load feed. Try again.';
     });
   },
 });

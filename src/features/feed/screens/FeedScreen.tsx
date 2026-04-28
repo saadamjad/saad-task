@@ -4,19 +4,35 @@ import { ArticleCard } from 'features/feed/components/ArticleCard';
 import { ArticleCardSkeleton } from 'features/feed/components/ArticleCardSkeleton';
 import { useFeedScreen } from 'features/feed/hooks/useFeedScreen';
 import type { JSX } from 'react';
-import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, Text, View } from 'react-native';
-import { colors } from 'theme';
+import { useCallback, useMemo } from 'react';
+import { ActivityIndicator, RefreshControl } from 'react-native';
+import { useTheme } from 'styled-components/native';
 import type { Article } from 'types/article';
 import type { FeedStackParamList } from 'types/navigation';
-import { styles } from './FeedScreen.styles';
+import {
+  ActionButton,
+  ActionButtonSpaced,
+  ActionButtonText,
+  EmptyText,
+  ErrorText,
+  FooterLoader,
+  ScreenCenter,
+  ScreenSafe,
+  StaleFeedErrorBanner,
+  StaleFeedErrorText,
+} from './FeedScreen.styled';
+
+const FEED_ESTIMATED_ROW_SIZE = 160;
+const SKELETON_ESTIMATED_ROW_SIZE = 120;
 
 type Props = NativeStackScreenProps<FeedStackParamList, 'FeedHome'>;
 
-export const FeedScreen = ({navigation}: Props): JSX.Element => {
+export const FeedScreen = ({ navigation }: Props): JSX.Element => {
+  const theme = useTheme();
   const {
     feedState,
     savedById,
+    savedArticlesDigest,
     visibleArticles,
     retryFeedLoad,
     viewArticle,
@@ -24,8 +40,16 @@ export const FeedScreen = ({navigation}: Props): JSX.Element => {
     loadMoreArticles,
   } = useFeedScreen(navigation);
 
+  const hasArticles = feedState.allArticles.length > 0;
+  const showInitialSkeleton = feedState.loading && !hasArticles;
+
+  const listContentStyle = useMemo(
+    () => ({ padding: theme.spacing.lg }),
+    [theme.spacing.lg],
+  );
+
   const renderArticle = useCallback(
-    ({item}: {item: Article}) => (
+    ({ item }: { item: Article }) => (
       <ArticleCard
         article={item}
         isSaved={Boolean(savedById[item.id])}
@@ -36,70 +60,98 @@ export const FeedScreen = ({navigation}: Props): JSX.Element => {
     [savedById, toggleOfflineSave, viewArticle],
   );
 
-  if (feedState.loading) {
+  const refreshControlEl = useMemo(
+    () => (
+      <RefreshControl
+        refreshing={feedState.loading && hasArticles}
+        onRefresh={retryFeedLoad}
+        tintColor={theme.colors.accent}
+        colors={[theme.colors.accent]}
+        progressBackgroundColor={theme.colors.surface}
+      />
+    ),
+    [
+      feedState.loading,
+      hasArticles,
+      retryFeedLoad,
+      theme.colors.accent,
+      theme.colors.surface,
+    ],
+  );
+
+  const staleErrorBanner =
+    feedState.error && hasArticles ? (
+      <StaleFeedErrorBanner accessibilityRole="alert">
+        <StaleFeedErrorText>{feedState.error}</StaleFeedErrorText>
+      </StaleFeedErrorBanner>
+    ) : null;
+
+  if (showInitialSkeleton) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenSafe>
         <FlashList
           data={[1, 2, 3, 4]}
           renderItem={() => <ArticleCardSkeleton />}
-          estimatedItemSize={120}
+          estimatedItemSize={SKELETON_ESTIMATED_ROW_SIZE}
           keyExtractor={item => String(item)}
         />
-      </SafeAreaView>
+      </ScreenSafe>
     );
   }
 
-  if (feedState.error) {
+  if (feedState.error && !hasArticles) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.errorText}>{feedState.error}</Text>
-        <Pressable
+      <ScreenCenter>
+        <ErrorText>{feedState.error}</ErrorText>
+        <ActionButton
           accessibilityRole="button"
           accessibilityLabel="Retry loading feed after error"
           disabled={feedState.loading}
-          onPress={retryFeedLoad}
-          style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>Retry</Text>
-        </Pressable>
-      </SafeAreaView>
+          $disabled={feedState.loading}
+          onPress={retryFeedLoad}>
+          <ActionButtonText>Retry</ActionButtonText>
+        </ActionButton>
+      </ScreenCenter>
     );
   }
 
-  if (visibleArticles.length === 0) {
+  if (!hasArticles) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.emptyText}>No articles found right now.</Text>
-        <Pressable
+      <ScreenCenter>
+        <EmptyText>No articles found right now.</EmptyText>
+        <ActionButtonSpaced
           accessibilityRole="button"
           accessibilityLabel="Retry loading feed"
-          onPress={retryFeedLoad}
-          style={[styles.actionButton, styles.emptyRetrySpacing]}
-          disabled={feedState.loading}>
-          <Text style={styles.actionButtonText}>Refresh</Text>
-        </Pressable>
-      </SafeAreaView>
+          disabled={feedState.loading}
+          $disabled={feedState.loading}
+          onPress={retryFeedLoad}>
+          <ActionButtonText>Refresh</ActionButtonText>
+        </ActionButtonSpaced>
+      </ScreenCenter>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenSafe>
       <FlashList
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={listContentStyle}
         data={visibleArticles}
-        extraData={savedById}
-        estimatedItemSize={160}
+        extraData={savedArticlesDigest}
+        estimatedItemSize={FEED_ESTIMATED_ROW_SIZE}
         keyExtractor={item => item.id}
         onEndReached={loadMoreArticles}
         onEndReachedThreshold={0.6}
+        refreshControl={refreshControlEl}
         renderItem={renderArticle}
+        ListHeaderComponent={staleErrorBanner}
         ListFooterComponent={
           feedState.visibleCount < feedState.allArticles.length ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator color={colors.accent} />
-            </View>
+            <FooterLoader>
+              <ActivityIndicator color={theme.colors.accent} />
+            </FooterLoader>
           ) : null
         }
       />
-    </SafeAreaView>
+    </ScreenSafe>
   );
 };

@@ -1,7 +1,15 @@
-import React, {memo} from 'react';
-import {Pressable, Text, View} from 'react-native';
-import type {Article} from 'types/article';
-import {styles} from './ArticleCard.styles';
+import React, { memo, useCallback } from 'react';
+import { Pressable } from 'react-native';
+import type { Article } from 'types/article';
+import {
+  Category,
+  Container,
+  HeaderRow,
+  ReadTime,
+  SaveButton,
+  SaveButtonText,
+  Title,
+} from './ArticleCard.styled';
 
 interface Props {
   article: Article;
@@ -24,32 +32,50 @@ const arePropsEqual = (prev: Props, next: Props): boolean => {
   );
 };
 
-const ArticleCardComponent = ({article, isSaved, onPress, onToggleSave}: Props): React.JSX.Element => {
-  const offlineLabel = isSaved ? 'Remove Offline' : 'Save Offline';
+const ArticleCardComponent = ({
+  article,
+  isSaved,
+  onPress,
+  onToggleSave,
+}: Props): React.JSX.Element => {
+  const offlineLabel = isSaved ? 'Remove offline article' : 'Save offline';
+
+  const handleOpenArticle = useCallback(() => {
+    onPress(article);
+  }, [article, onPress]);
+
+  const handleToggleSave = useCallback(() => {
+    onToggleSave(article);
+  }, [article, onToggleSave]);
 
   return (
-    <View style={styles.container} testID={`article-card-${article.id}`}>
+    <Container testID={`article-card-${article.id}`}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open article: ${article.title}`}
-        hitSlop={{top: 4, bottom: 4, left: 4, right: 4}}
-        onPress={() => onPress(article)}>
-        <View style={styles.headerRow}>
-          <Text style={styles.category}>{article.category}</Text>
-          <Text style={styles.readTime}>{article.readTimeMinutes} min read</Text>
-        </View>
-        <Text style={styles.title}>{article.title}</Text>
+        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+        onPress={handleOpenArticle}>
+        <HeaderRow>
+          <Category>{article.category}</Category>
+          <ReadTime>{article.readTimeMinutes} min read</ReadTime>
+        </HeaderRow>
+        <Title>{article.title}</Title>
       </Pressable>
-      <Pressable
+      <SaveButton
         accessibilityRole="button"
-        accessibilityLabel={`${offlineLabel} — ${article.title}`}
-        accessibilityState={{selected: isSaved}}
-        style={[styles.saveButton, isSaved ? styles.savedButton : undefined]}
-        onPress={() => onToggleSave(article)}
+        accessibilityLabel={`${offlineLabel}: ${article.title}`}
+        accessibilityHint={
+          isSaved
+            ? 'Removes this article from offline storage'
+            : 'Saves this article for offline reading'
+        }
+        accessibilityState={{ selected: isSaved }}
+        $saved={isSaved}
+        onPress={handleToggleSave}
         testID={`article-save-${article.id}`}>
-        <Text style={styles.saveButtonText}>{offlineLabel}</Text>
-      </Pressable>
-    </View>
+        <SaveButtonText $saved={isSaved}>{offlineLabel}</SaveButtonText>
+      </SaveButton>
+    </Container>
   );
 };
 

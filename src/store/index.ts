@@ -1,8 +1,8 @@
-import {combineReducers, configureStore, createListenerMiddleware} from '@reduxjs/toolkit';
-import {useDispatch, useSelector, TypedUseSelectorHook} from 'react-redux';
-import {persistSavedArticles} from 'services/storage/savedArticlesStorage';
-import {authGateReducer} from 'store/slices/authGateSlice';
-import {feedReducer} from 'store/slices/feedSlice';
+import { combineReducers, configureStore, createListenerMiddleware } from '@reduxjs/toolkit';
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+import { persistSavedArticles } from 'services/storage/savedArticlesStorage';
+import { authGateReducer } from 'store/slices/authGateSlice';
+import { feedReducer } from 'store/slices/feedSlice';
 import {
   removeArticle,
   saveArticle,
@@ -18,9 +18,11 @@ const rootReducer = combineReducers({
 
 const savedListenerMiddleware = createListenerMiddleware();
 
-const persistSavedSafely = async (state: RootState): Promise<void> => {
+const PERSIST_DEBOUNCE_MS = 280;
+
+const persistSavedSafely = async (getState: () => RootState): Promise<void> => {
   try {
-    await persistSavedArticles(state.saved.byId);
+    await persistSavedArticles(getState().saved.byId);
   } catch (error) {
     if (__DEV__) {
       console.warn('persistSavedArticles failed', error);
@@ -28,27 +30,38 @@ const persistSavedSafely = async (state: RootState): Promise<void> => {
   }
 };
 
+let persistScheduledId: ReturnType<typeof setTimeout> | null = null;
+
+const schedulePersistSaved = (getState: () => RootState): void => {
+  if (persistScheduledId !== null) {
+    clearTimeout(persistScheduledId);
+  }
+  persistScheduledId = setTimeout(() => {
+    persistScheduledId = null;
+    persistSavedSafely(getState).catch(() => {
+      /* Errors logged inside persistSavedSafely */
+    });
+  }, PERSIST_DEBOUNCE_MS);
+};
+
 savedListenerMiddleware.startListening({
   actionCreator: saveArticle,
-  effect: async (_, api) => {
-    const state = api.getState() as RootState;
-    await persistSavedSafely(state);
+  effect: (_, api) => {
+    schedulePersistSaved(() => api.getState() as RootState);
   },
 });
 
 savedListenerMiddleware.startListening({
   actionCreator: removeArticle,
-  effect: async (_, api) => {
-    const state = api.getState() as RootState;
-    await persistSavedSafely(state);
+  effect: (_, api) => {
+    schedulePersistSaved(() => api.getState() as RootState);
   },
 });
 
 savedListenerMiddleware.startListening({
   actionCreator: toggleSavedArticle,
-  effect: async (_, api) => {
-    const state = api.getState() as RootState;
-    await persistSavedSafely(state);
+  effect: (_, api) => {
+    schedulePersistSaved(() => api.getState() as RootState);
   },
 });
 

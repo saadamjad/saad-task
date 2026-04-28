@@ -9,12 +9,14 @@ import { FeedScreen } from 'features/feed/screens/FeedScreen';
 import { SavedArticlesScreen } from 'features/saved/screens/SavedArticlesScreen';
 import { SavedGateScreen } from 'features/saved/screens/SavedGateScreen';
 import type { JSX } from 'react';
-import { colors } from 'theme';
+import { appTheme } from 'theme';
 import type {
   FeedStackParamList,
   RootTabParamList,
   SavedStackParamList,
 } from 'types/navigation';
+
+const { colors } = appTheme;
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const FeedStack = createNativeStackNavigator<FeedStackParamList>();

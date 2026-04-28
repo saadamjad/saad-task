@@ -11,6 +11,8 @@ import type { FeedStackParamList } from 'types/navigation';
 interface UseFeedScreenResult {
   feedState: RootState['feed'];
   savedById: Record<string, Article>;
+  /** Stable snapshot for FlashList `extraData` so rows re-render when saved state changes. */
+  savedArticlesDigest: string;
   visibleArticles: Article[];
   retryFeedLoad: () => void;
   viewArticle: (article: Article) => void;
@@ -24,6 +26,11 @@ export const useFeedScreen = (
   const dispatch = useAppDispatch();
   const feedState = useAppSelector(state => state.feed);
   const savedById = useAppSelector(state => state.saved.byId, shallowEqual);
+
+  const savedArticlesDigest = useMemo(
+    () => Object.keys(savedById).sort().join('|'),
+    [savedById],
+  );
 
   const visibleArticles = useMemo(
     () => feedState.allArticles.slice(0, feedState.visibleCount),
@@ -60,6 +67,7 @@ export const useFeedScreen = (
   return {
     feedState,
     savedById,
+    savedArticlesDigest,
     visibleArticles,
     retryFeedLoad,
     viewArticle,

@@ -1,49 +1,63 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FlashList } from '@shopify/flash-list';
-import { ArticleCard } from 'features/feed/components/ArticleCard';
+import { SavedArticleAnimatedRow } from 'features/saved/components/SavedArticleAnimatedRow';
 import { useSavedArticlesScreen } from 'features/saved/hooks/useSavedArticlesScreen';
 import type { JSX } from 'react';
-import { useCallback } from 'react';
-import { SafeAreaView, Text } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { useTheme } from 'styled-components/native';
+import { useAppDispatch } from 'store';
+import { toggleSavedArticle } from 'store/slices/savedSlice';
 import type { Article } from 'types/article';
 import type { SavedStackParamList } from 'types/navigation';
-import { styles } from './SavedArticlesScreen.styles';
+import { CenterSafe, EmptyText, ListSafe } from './SavedArticlesScreen.styled';
 
 type Props = NativeStackScreenProps<SavedStackParamList, 'SavedArticles'>;
 
-export const SavedArticlesScreen = ({navigation}: Props): JSX.Element => {
+export const SavedArticlesScreen = ({ navigation }: Props): JSX.Element => {
+  const dispatch = useAppDispatch();
+  const theme = useTheme();
+  const { savedArticles, viewArticle } = useSavedArticlesScreen(navigation);
 
-  const {savedArticles, viewArticle, toggleOfflineSave} = useSavedArticlesScreen(navigation);
+  const removeSavedArticleAfterSlideOut = useCallback(
+    (article: Article) => {
+      dispatch(toggleSavedArticle(article));
+    },
+    [dispatch],
+  );
 
   const renderSavedArticle = useCallback(
-    ({item}: {item: Article}) => (
-      <ArticleCard
+    ({ item }: { item: Article }) => (
+      <SavedArticleAnimatedRow
         article={item}
-        isSaved
-        onPress={viewArticle}
-        onToggleSave={toggleOfflineSave}
+        viewArticle={viewArticle}
+        onSlideOutRemovalComplete={removeSavedArticleAfterSlideOut}
       />
     ),
-    [toggleOfflineSave, viewArticle],
+    [removeSavedArticleAfterSlideOut, viewArticle],
+  );
+
+  const listContentStyle = useMemo(
+    () => ({ padding: theme.spacing.lg }),
+    [theme.spacing.lg],
   );
 
   if (savedArticles.length === 0) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.emptyText}>No offline articles saved yet.</Text>
-      </SafeAreaView>
+      <CenterSafe>
+        <EmptyText>No offline articles saved yet.</EmptyText>
+      </CenterSafe>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ListSafe>
       <FlashList
         data={savedArticles}
         estimatedItemSize={160}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={listContentStyle}
         renderItem={renderSavedArticle}
       />
-    </SafeAreaView>
+    </ListSafe>
   );
 };

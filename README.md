@@ -10,7 +10,7 @@ Production-focused **React Native CLI** application built with **TypeScript**, f
 - Invite **`jimishio`** as a collaborator before the deadline.
 - Reply to **`jim@shlenpower.com`** (Cc **`hr@shlenpower.com`**) with the repository link.
 
-> **Note:** If the repo was created public earlier, change it under GitHub → **Settings → Danger Zone → Change visibility → Private**, then add the collaborator.
+>
 
 ---
 

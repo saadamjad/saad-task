@@ -1,4 +1,4 @@
-# Fast checks on every PR / push to main — separate from release workflows
+# Fast checks on every PR / push to main-line branches — separate from release workflows
 # (android-release-*.yml / ios-release-*.yml), which sign builds and publish to stores.
 name: CI
 
@@ -6,6 +6,7 @@ on:
   pull_request:
   push:
     branches:
+      - development
       - main
       - master
 

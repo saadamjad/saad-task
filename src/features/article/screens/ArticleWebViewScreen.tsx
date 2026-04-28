@@ -1,23 +1,34 @@
-import type {NativeStackScreenProps} from '@react-navigation/native-stack';
-import React, {useCallback, useRef, useState} from 'react';
-import {Alert, Linking, Pressable, Share, Text, View} from 'react-native';
-import WebView from 'react-native-webview';
-import {styles} from './ArticleWebViewScreen.styles';
-import type {FeedStackParamList, SavedStackParamList} from 'types/navigation';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useRef, useState } from 'react';
+import type WebView from 'react-native-webview';
+import { Alert, Linking, Share } from 'react-native';
+import type { FeedStackParamList, SavedStackParamList } from 'types/navigation';
+import {
+  ArticleWebView,
+  ErrorBanner,
+  ErrorBannerText,
+  Root,
+  Toolbar,
+  ToolbarButton,
+  ToolbarButtonText,
+} from './ArticleWebViewScreen.styled';
 
 type Props =
   | NativeStackScreenProps<FeedStackParamList, 'ArticleWebView'>
   | NativeStackScreenProps<SavedStackParamList, 'ArticleWebView'>;
 
-export const ArticleWebViewScreen = ({navigation, route}: Props): React.JSX.Element => {
+export const ArticleWebViewScreen = ({
+  navigation,
+  route,
+}: Props): React.JSX.Element => {
   const webViewRef = useRef<WebView>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const {article} = route.params;
+  const { article } = route.params;
 
   const onShare = useCallback(async (): Promise<void> => {
     try {
-      await Share.share({message: article.link});
+      await Share.share({ message: article.link });
     } catch {
       Alert.alert('Unable to share', 'Please try again.');
     }
@@ -40,7 +51,7 @@ export const ArticleWebViewScreen = ({navigation, route}: Props): React.JSX.Elem
     navigation.goBack();
   }, [canGoBack, navigation]);
 
-  const onNavigationStateChange = useCallback((state: {canGoBack: boolean}) => {
+  const onNavigationStateChange = useCallback((state: { canGoBack: boolean }) => {
     setCanGoBack(state.canGoBack);
   }, []);
 
@@ -49,44 +60,35 @@ export const ArticleWebViewScreen = ({navigation, route}: Props): React.JSX.Elem
   }, []);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.toolbar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={onBack}
-          style={styles.button}>
-          <Text style={styles.buttonText}>Back</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Share article link"
-          onPress={onShare}
-          style={styles.button}>
-          <Text style={styles.buttonText}>Share</Text>
-        </Pressable>
-        <Pressable
+    <Root>
+      <Toolbar>
+        <ToolbarButton accessibilityRole="button" accessibilityLabel="Go back" onPress={onBack}>
+          <ToolbarButtonText>Back</ToolbarButtonText>
+        </ToolbarButton>
+        <ToolbarButton accessibilityRole="button" accessibilityLabel="Share article link" onPress={onShare}>
+          <ToolbarButtonText>Share</ToolbarButtonText>
+        </ToolbarButton>
+        <ToolbarButton
           accessibilityRole="button"
           accessibilityLabel="Open in browser"
-          onPress={openInBrowser}
-          style={styles.button}>
-          <Text style={styles.buttonText}>Browser</Text>
-        </Pressable>
-      </View>
+          onPress={openInBrowser}>
+          <ToolbarButtonText>Browser</ToolbarButtonText>
+        </ToolbarButton>
+      </Toolbar>
       {loadError ? (
-        <View style={styles.errorBanner} accessibilityRole="alert">
-          <Text style={styles.errorText}>
+        <ErrorBanner accessibilityRole="alert">
+          <ErrorBannerText>
             Unable to load this page. Check your connection or open in Browser.
-          </Text>
-        </View>
+          </ErrorBannerText>
+        </ErrorBanner>
       ) : null}
-      <WebView
+      <ArticleWebView
         ref={webViewRef}
-        source={{uri: article.link}}
+        source={{ uri: article.link }}
         startInLoadingState
         onNavigationStateChange={onNavigationStateChange}
         onError={onWebViewError}
       />
-    </View>
+    </Root>
   );
 };

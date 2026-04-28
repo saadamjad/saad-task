@@ -1,5 +1,5 @@
-import type {NavigatorScreenParams} from '@react-navigation/native';
-import type {Article} from 'types/article';
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { Article } from 'types/article';
 
 export type FeedStackParamList = {
   FeedHome: undefined;

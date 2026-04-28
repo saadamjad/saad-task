@@ -52,4 +52,20 @@ describe('feedSlice', () => {
     const expandedState = feedReducer(loadedState, loadMore());
     expect(expandedState.visibleCount).toBe(15);
   });
+
+  it('keeps cached articles when a refresh fails so the list stays usable', async () => {
+    mockedFetchArticles.mockResolvedValueOnce(mockArticles);
+    const store = configureStore({
+      reducer: {feed: feedReducer},
+    });
+    await store.dispatch(fetchFeed()).unwrap();
+
+    mockedFetchArticles.mockRejectedValueOnce(new Error('network unavailable'));
+
+    await expect(store.dispatch(fetchFeed()).unwrap()).rejects.toBeDefined();
+
+    const {feed} = store.getState();
+    expect(feed.allArticles).toHaveLength(mockArticles.length);
+    expect(feed.error).toContain('network');
+  });
 });

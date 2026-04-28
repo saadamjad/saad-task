@@ -8,6 +8,10 @@ export const colors = {
   error: '#64748B',
   border: '#374151',
   skeleton: '#2B3647',
+  pinkLace: '#E2DDFE',
+  darkShadeRed: '#D35355',
+  /** Saved / remove-offline control label (high contrast on light pink button). */
+  removeOfflineText: '#D35355',
 };
 
 export const spacing = {
@@ -17,3 +21,11 @@ export const spacing = {
   lg: 16,
   xl: 20,
 };
+
+/** Single source of truth for ThemeProvider and navigation chrome. */
+export const appTheme = {
+  colors,
+  spacing,
+};
+
+export type AppTheme = typeof appTheme;

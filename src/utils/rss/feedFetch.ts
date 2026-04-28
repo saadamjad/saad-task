@@ -38,8 +38,17 @@ export const fetchFeedResponse = async (url: string): Promise<Response> => {
     ) {
       throw error;
     }
+
+    const aborted = error instanceof Error && error.name === 'AbortError';
+
+    if (aborted) {
+      throw new Error(
+        'The request timed out. Check your connection and try again.',
+      );
+    }
+
     throw new Error(
-      error instanceof Error ? error.message : 'Feed request timed out',
+      error instanceof Error ? error.message : 'Unable to reach the feed.',
     );
   } finally {
     clearTimeout(timeout);

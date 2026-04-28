@@ -22,7 +22,14 @@ export const useSavedArticlesScreen = (
   const savedById = useAppSelector(state => state.saved.byId, shallowEqual);
   const gateStatus = useAppSelector(state => state.authGate.status);
 
-  const savedArticles = useMemo(() => Object.values(savedById), [savedById]);
+  const savedArticles = useMemo(() => {
+    const list = Object.values(savedById);
+    const time = (iso: string): number => {
+      const n = Date.parse(iso);
+      return Number.isNaN(n) ? 0 : n;
+    };
+    return list.sort((a, b) => time(b.publishedAt) - time(a.publishedAt));
+  }, [savedById]);
 
   useFocusEffect(
     useCallback(() => {
